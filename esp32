@@ -1,0 +1,100 @@
+//########################################################
+/// Arduino IDE: 1.8.10
+/// Library ArduinoJson: versão 5.13.5 última atualização https://arduinojson.org/book/
+/// Thiago S. 03/02/21
+//#########################################################
+
+#include <Arduino.h>
+#include "WiFi.h"
+#include <ArduinoJson.h> //Última atualização da versão 5.x
+#include <math.h>
+
+#define ANALOG_0 36
+#define ANALOG_1 39
+#define ANALOG_2 34
+#define ANALOG_3 35
+#define ANALOG_4 32
+
+// Replace with your network credentials
+const char* ssid     = "ESP32-Access-Poin";
+const char* password = "123456789";
+
+// Set web server port number to 80
+WiFiServer server(80);
+//WiFiClient client;
+int flag = 0;
+//int j = 0;
+//int i = 0;
+//int t1 = 0;
+//int t2 = 0;
+//unsigned long temp1;
+//unsigned long temp2;
+//unsigned long temp;
+String pacote;
+
+void setup() {
+  // Initialize Serial port
+  Serial.begin(9600);
+  
+  // Connect to Wi-Fi network with SSID and password
+  Serial.print("Setting AP (Access Point)…");
+  // Remove the password parameter, if you want the AP (Access Point) to be open
+  WiFi.softAP(ssid, password);
+
+  IPAddress IP = WiFi.softAPIP();
+  Serial.print("AP IP address: ");
+  Serial.println(IP);
+  
+  server.begin();
+  xTaskCreatePinnedToCore(loop2, "loop2", 8192, NULL, 1, NULL, 0);//Cria a tarefa "loop2()" com prioridade 1, atribuída ao core 0
+  delay(1);
+}
+
+void loop() {
+  WiFiClient client = server.available();   // Listen for incoming clients
+
+  if (client) {                             // If a new client connects (Ex. Python),
+    Serial.println("New Client.");          // print a message out in the serial port
+    String currentLine = "";                // make a String to hold incoming data from the client
+    while (client.connected()) {
+                if(flag == 1){
+                  client.print(pacote); 
+                  flag = 0;
+                  }
+      }
+  client.stop();
+  Serial.println("Client disconnected");
+ }
+}
+
+void loop2(void*z)//Atribuímos o loop2 ao core 0, com prioridade 1
+{
+  while(1){
+  //StaticJsonBuffer<5000> jsonBuffer;
+  DynamicJsonBuffer jsonBuffer; //o tamanho é definido automaticamente  https://arduinojson.org/v5/doc/memory/
+  JsonObject& root = jsonBuffer.createObject();
+
+  JsonArray& c1 = root.createNestedArray("data1");
+  JsonArray& c2 = root.createNestedArray("data2");
+  JsonArray& c3 = root.createNestedArray("data3");
+  JsonArray& c4 = root.createNestedArray("data4");
+
+
+  //buffer com 200 coletas
+  for(int i = 0; i<199; i++){ 
+    c1.add(analogRead(ANALOG_0));
+    c2.add(analogRead(ANALOG_1));
+    c3.add(analogRead(ANALOG_2));
+    c4.add(analogRead(ANALOG_3));
+    delay(1);
+  }
+    c1.add(analogRead(ANALOG_0));
+    c2.add(analogRead(ANALOG_1));
+    c3.add(analogRead(ANALOG_2));
+    c4.add(analogRead(ANALOG_3));
+  
+  pacote = ""; //limpa o pacote para receber os novos dados
+  root.printTo(pacote);
+  flag = 1;  
+    }
+}
